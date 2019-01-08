@@ -1,6 +1,6 @@
 import { FaceMatch } from '../classes/FaceMatch';
 import { LabeledFaceDescriptors } from '../classes/LabeledFaceDescriptors';
-import { euclideanDistance } from '../euclideanDistance';
+import { euclideanDistance, euclidianDistanceSquared } from '../euclideanDistance';
 import { WithFaceDescriptor } from '../factories';
 
 export class FaceMatcher {
@@ -63,6 +63,29 @@ export class FaceMatcher {
   public findBestMatch(queryDescriptor: Float32Array): FaceMatch {
     const bestMatch = this.matchDescriptor(queryDescriptor)
     return bestMatch.distance < this.distanceThreshold
+      ? bestMatch
+      : new FaceMatch('unknown', bestMatch.distance)
+  }
+  
+  public computeMeanDistanceSquared(queryDescriptor: Float32Array, descriptors: Float32Array[]): number {
+    return descriptors
+      .map(d => euclideanDistanceSquared(d, queryDescriptor))
+      .reduce((d1, d2) => d1 + d2, 0)
+        / (descriptors.length || 1)
+  }
+
+  public matchDescriptorSquared(queryDescriptor: Float32Array): FaceMatch {
+    return this.labeledDescriptors
+      .map(({ descriptors, label }) => new FaceMatch(
+          label,
+          this.computeMeanDistance(queryDescriptor, descriptors)
+      ))
+      .reduce((best, curr) => best.distance < curr.distance ? best : curr)
+  }
+  
+   public findBestMatchUsingSquaredDistance(queryDescriptor: Float32Array): FaceMatch {
+    const bestMatch = this.matchDescriptorSquared(queryDescriptor)
+    return bestMatch.distance < (this.distanceThreshold * this.distanceThreshold)
       ? bestMatch
       : new FaceMatch('unknown', bestMatch.distance)
   }
